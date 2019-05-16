@@ -36,8 +36,8 @@ def run_lfh(opt):
                                                   )
 
     # 正则化超参
-    lamda = opt.lamda * train_data.shape[0] / train_data.shape[1]
-    beta = opt.beta / opt.code_length
+    # lamda = opt.lamda * train_data.shape[0] / train_data.shape[1]
+    # beta = opt.beta / opt.code_length
 
     # LFH算法
     U, meanAP = LFH.lfh(code_length=opt.code_length,
@@ -115,9 +115,11 @@ if __name__ == "__main__":
     code_lengths = [8, 16, 24, 32, 48, 64, 96, 128]
 
     for i in code_lengths:
-        # 可视化
         opt.code_length = i
-        meanAP = run_lfh(opt)
-        writer.add_scalar('mAP', meanAP, i)
+        meanAP = 0.
+        for it in range(10):
+            meanAP += run_lfh(opt)
 
+        writer.add_scalar('mAP', meanAP/10, i)
+        logger.info('average: {:.4f}'.format(meanAP/10))
     writer.close()
