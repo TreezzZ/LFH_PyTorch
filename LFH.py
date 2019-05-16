@@ -66,7 +66,6 @@ def lfh(code_length,
     U = U.sign()
 
     meanAP = evaluate(test_data, test_labels, pre_calc, train_labels, U)
-    print("mAP: {:.4f}".format(meanAP))
     return U, meanAP
 
 

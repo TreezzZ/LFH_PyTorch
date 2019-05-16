@@ -2,10 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import LFH
+import data.dataloader as DataLoader
 
 from torch.utils.tensorboard import SummaryWriter
-import data.dataloader as DataLoader
+from loguru import logger
+
 import argparse
+import os
+import torch
+import datetime
 
 
 def run_lfh(opt):
@@ -31,8 +36,8 @@ def run_lfh(opt):
                                                   )
 
     # 正则化超参
-    opt.lamda = opt.lamda * train_data.shape[0] / train_data.shape[1]
-    opt.beta = opt.beta / opt.code_length
+    lamda = opt.lamda * train_data.shape[0] / train_data.shape[1]
+    beta = opt.beta / opt.code_length
 
     # LFH算法
     U, meanAP = LFH.lfh(code_length=opt.code_length,
@@ -46,6 +51,26 @@ def run_lfh(opt):
                         test_labels=test_labels,
                         lamda=opt.lamda,
                         )
+
+    logger.info("hyper-parameters: code_length: {}, num_samples: {}, max_iterations: {}"
+                ", beta: {}, epsilon: {}, lamda: {}".format(opt.code_length,
+                                                            opt.num_samples,
+                                                            opt.max_iterations,
+                                                            opt.beta,
+                                                            opt.epsilon,
+                                                            opt.lamda),
+                )
+    logger.info("meanAP: {:.4f}".format(meanAP))
+
+    # 保存结果
+    torch.save(U, os.path.join('result',
+                               '{}_{}_{}_{}_{:.4f}.t'.format(datetime.datetime
+                                                             .now().strftime('%Y_%m_%d_%H_%M_%S'),
+                                                             opt.code_length,
+                                                             opt.code_length,
+                                                             opt.max_iterations,
+                                                             meanAP,
+                                                             )))
 
     return meanAP
 
@@ -68,8 +93,8 @@ def load_parse():
 
     parser.add_argument('--code-length', default='64', type=int,
                         help='hyper-parameter: binary hash code length (default: 64)')
-    parser.add_argument('--num-samples', default='200', type=int,
-                        help='hyper-parameter: numbers of sampling data (default: 200)')
+    parser.add_argument('--num-samples', default='64', type=int,
+                        help='hyper-parameter: numbers of sampling data (default: same as code-length)')
     parser.add_argument('--max-iterations', default='50', type=int,
                         help='hyper-parameter: numbers of iterations (default: 50)')
     parser.add_argument('--beta', default='30', type=float,
@@ -84,8 +109,15 @@ def load_parse():
 
 if __name__ == "__main__":
     opt = load_parse()
-
-    # 可视化
     writer = SummaryWriter()
-    meanAP = run_lfh(opt)
-    writer.add_scalar('mAP', meanAP)
+    logger.add('logs/file_{time}.log')
+
+    code_lengths = [8, 16, 24, 32, 48, 64, 96, 128]
+
+    for i in code_lengths:
+        # 可视化
+        opt.code_length = i
+        meanAP = run_lfh(opt)
+        writer.add_scalar('mAP', meanAP, i)
+
+    writer.close()

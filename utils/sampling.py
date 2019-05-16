@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import torch
-import numpy as np
 
 
 def sampling(num_dataset, num_samples):
@@ -19,5 +18,4 @@ def sampling(num_dataset, num_samples):
         sample_index: Tensor
         采样数据下标
     """
-    #sample_index = torch.randperm(num_dataset)[:num_samples]
-    return list(np.random.permutation(num_dataset))[:num_samples]
+    return torch.randperm(num_dataset)[:num_samples]
