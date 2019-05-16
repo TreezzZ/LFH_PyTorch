@@ -8,6 +8,11 @@
 3. tqdm
 4. loguru
 
+## 数据集下载地址
+[cifar10-gist.mat](https://pan.baidu.com/s/1qE9KiAOTNs5ORn_WoDDwUg)
+
+提取码: umb6
+
 ## 运行
 `python run.py --dataset cifar10 --data-path <data_path> --code-length 64 `
 
