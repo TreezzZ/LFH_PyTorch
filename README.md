@@ -35,6 +35,6 @@ optional arguments:
 ## EXPERIMENTS
 cifar10-gist dataset. 1000 query images, 59000 training images.
 
-  | 8 bits | 16 bits | 24 bits | 32 bits | 48 bits | 64 bits | 96 bits | 128 bits
- :-:  | :-:   |  :-:    |   :-:   |   :-:   |   :-:   |   :-:   |   :-:   |   :-:   
-cifar10-gist MAP@ALL | 0.4662 | 0.5591 | 0.5935 | 0.5912 | 0.6117 | 0.6073 | 0.6210 | 0.6321
+                     | 8 bits | 16 bits | 24 bits | 32 bits | 48 bits | 64 bits | 96 bits | 128 bits
+          :-:        |   :-:  |   :-:   |   :-:   |   :-:   |   :-:   |   :-:   |   :-:   |   :-:   
+cifar10-gist MAP@ALL | 0.4662 | 0.5591  | 0.5935  | 0.5912  | 0.6117  | 0.6073  | 0.6210  | 0.6321
