@@ -1,125 +1,77 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+import argparse
 
-import LFH
-import data.dataloader as DataLoader
-
-from torch.utils.tensorboard import SummaryWriter
+import torch
 from loguru import logger
 
-import argparse
-import os
-import torch
-import datetime
+import lfh
+from data.dataloader import load_data
 
 
-def run_lfh(opt):
-    """运行LFH算法
+def run():
+    # Load configuration
+    args = load_config()
+    logger.add('logs/{time}.log', rotation='500 MB', level='INFO')
+    logger.info(args)
 
-    Parameters
-        opt: parser
-        程序运行参数
+    # Load dataset
+    query_data, query_targets, train_data, train_targets = load_data(args.dataset, args.root)
+    query_data = torch.from_numpy(query_data).float()
+    query_targets = torch.from_numpy(query_targets).float()
+    train_data = torch.from_numpy(train_data).float()
+    train_targets = torch.from_numpy(train_targets).float()
 
-    Returns
-        meanAP: float
-        Mean Average Precision
+    # Training
+    for code_length in args.code_length:
+        mAP = lfh.train(
+            query_data,
+            query_targets,
+            train_data,
+            train_targets,
+            code_length,
+            args.num_samples,
+            args.max_iter,
+            args.beta,
+            args.lamda,
+            args.topk,
+        )
+        logger.info('[code length:{}][map:{:.4f}]'.format(code_length, mAP))
+
+
+def load_config():
     """
-    # 加载数据
-    train_data, train_labels = DataLoader.load_data(path=opt.data_path,
-                                                    dataset='cifar10_gist',
-                                                    train=True,
-                                                    )
+    Load configuration.
 
-    test_data, test_labels = DataLoader.load_data(path=opt.data_path,
-                                                  dataset='cifar10_gist',
-                                                  train=False,
-                                                  )
-
-    # 正则化超参
-    # lamda = opt.lamda * train_data.shape[0] / train_data.shape[1]
-    # beta = opt.beta / opt.code_length
-
-    # LFH算法
-    U, meanAP = LFH.lfh(code_length=opt.code_length,
-                        num_samples=opt.code_length,
-                        T=opt.max_iterations,
-                        beta=opt.beta,
-                        epsilon=opt.epsilon,
-                        train_data=train_data,
-                        train_labels=train_labels,
-                        test_data=test_data,
-                        test_labels=test_labels,
-                        lamda=opt.lamda,
-                        )
-
-    logger.info("hyper-parameters: code_length: {}, num_samples: {}, max_iterations: {}"
-                ", beta: {}, epsilon: {}, lamda: {}".format(opt.code_length,
-                                                            opt.num_samples,
-                                                            opt.max_iterations,
-                                                            opt.beta,
-                                                            opt.epsilon,
-                                                            opt.lamda),
-                )
-    logger.info("meanAP: {:.4f}".format(meanAP))
-
-    # 保存结果
-    torch.save(U, os.path.join('result',
-                               '{}_{}_{}_{}_{:.4f}.t'.format(datetime.datetime
-                                                             .now().strftime('%Y_%m_%d_%H_%M_%S'),
-                                                             opt.code_length,
-                                                             opt.code_length,
-                                                             opt.max_iterations,
-                                                             meanAP,
-                                                             )))
-
-    return meanAP
-
-
-def load_parse():
-    """加载程序参数
-
-    Parameters
+    Args
         None
 
     Returns
-        opt: parser
-        程序参数
+        args(argparse.ArgumentParser): Configuration.
     """
-    parser = argparse.ArgumentParser(description='LFH')
-    parser.add_argument('--dataset', default='cifar10', type=str,
-                        help='dataset used to train (default: cifar10)')
-    parser.add_argument('--data-path', default='~/data/pytorch_cifar10', type=str,
-                        help='path of cifar10 dataset (default: ~/data/pytorch_cifar10')
-
-    parser.add_argument('--code-length', default='64', type=int,
-                        help='hyper-parameter: binary hash code length (default: 64)')
-    parser.add_argument('--num-samples', default='64', type=int,
-                        help='hyper-parameter: numbers of sampling data (default: same as code-length)')
-    parser.add_argument('--max-iterations', default='50', type=int,
-                        help='hyper-parameter: numbers of iterations (default: 50)')
-    parser.add_argument('--beta', default='30', type=float,
-                        help='hyper-parameter: beta (default: 30)')
-    parser.add_argument('--epsilon', default='0.1', type=float,
-                        help='hyper-parameter: value of when to stop compute (default: 0.1)')
+    parser = argparse.ArgumentParser(description='LFH_PyTorch')
+    parser.add_argument('--dataset', type=str,
+                        help='Dataset name.')
+    parser.add_argument('--root', type=str,
+                        help='Path of dataset')
+    parser.add_argument('--code-length', default='8,16,24,32,48,64,96,128', type=str,
+                        help='Binary hash code length.(default: 8,16,24,32,48,64,96,128)')
+    parser.add_argument('--num-samples', default=64, type=int,
+                        help='Number of samples.(default: 64)')
+    parser.add_argument('--max-iter', default=50, type=int,
+                        help='Number of iterations.(default: 50)')
+    parser.add_argument('--beta', default=30, type=float,
+                        help='Hyper-parameter.(default: 30)')
     parser.add_argument('--lamda', default=1, type=float,
-                        help='hyper-parameter: regularization term (default: 1)')
+                        help='Hyper-parameter.(default: 1)')
+    parser.add_argument('--topk', default=-1, type=float,
+                        help='Calculate top k data map.(default: all)')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # Hash code length
+    args.code_length = list(map(int, args.code_length.split(',')))
+
+    return args
 
 
 if __name__ == "__main__":
-    opt = load_parse()
-    writer = SummaryWriter()
-    logger.add('logs/file_{time}.log')
-
-    code_lengths = [8, 16, 24, 32, 48, 64, 96, 128]
-
-    for i in code_lengths:
-        opt.code_length = i
-        meanAP = 0.
-        for it in range(10):
-            meanAP += run_lfh(opt)
-
-        writer.add_scalar('mAP', meanAP/10, i)
-        logger.info('average: {:.4f}'.format(meanAP/10))
-    writer.close()
+    run()
