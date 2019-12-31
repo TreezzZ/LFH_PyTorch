@@ -10,23 +10,21 @@ from data.dataloader import load_data
 def run():
     # Load configuration
     args = load_config()
-    logger.add('logs/{time}.log', rotation='500 MB', level='INFO')
+    logger.add('logs/{}_beta_{}_lamda_{}.log'.format(args.dataset, args.beta, args.lamda), rotation='500 MB', level='INFO')
     logger.info(args)
 
     # Load dataset
-    query_data, query_targets, train_data, train_targets = load_data(args.dataset, args.root)
-    query_data = torch.from_numpy(query_data).float()
-    query_targets = torch.from_numpy(query_targets).float()
-    train_data = torch.from_numpy(train_data).float()
-    train_targets = torch.from_numpy(train_targets).float()
+    train_data, train_targets, query_data, query_targets, retrieval_data, retrieval_targets = load_data(args.dataset, args.root)
 
     # Training
     for code_length in args.code_length:
         mAP = lfh.train(
-            query_data,
-            query_targets,
             train_data,
             train_targets,
+            query_data,
+            query_targets,
+            retrieval_data,
+            retrieval_targets,
             code_length,
             args.num_samples,
             args.max_iter,
@@ -62,7 +60,7 @@ def load_config():
                         help='Hyper-parameter.(default: 30)')
     parser.add_argument('--lamda', default=1, type=float,
                         help='Hyper-parameter.(default: 1)')
-    parser.add_argument('--topk', default=-1, type=float,
+    parser.add_argument('--topk', default=-1, type=int,
                         help='Calculate top k data map.(default: all)')
 
     args = parser.parse_args()
@@ -75,3 +73,4 @@ def load_config():
 
 if __name__ == "__main__":
     run()
+

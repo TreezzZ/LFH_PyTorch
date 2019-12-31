@@ -4,10 +4,12 @@ from utils.evaluate import mean_average_precision
 
 
 def train(
-        query_data,
-        query_targets,
         train_data,
         train_targets,
+        query_data,
+        query_targets,
+        retrieval_data,
+        retrieval_targets,
         code_length,
         num_samples,
         max_iter,
@@ -19,10 +21,12 @@ def train(
     Training model
 
     Args
-        query_data(torch.Tensor, num_query*512): Query data.
-        query_targets(torch.Tensor, num_query*10): One-hot query targets.
-        train_data(torch.Tensor, num_train*512): Training data.
-        train_targets(torch.Tensor, num_train*10): One-hot training targets.
+        train_data(torch.Tensor): Training data.
+        train_targets(torch.Tensor): One-hot training targets.
+        query_data(torch.Tensor): Query data.
+        query_targets(torch.Tensor): One-hot query targets.
+        retrieval_data(torch.Tensor): Retrieval data.
+        retrieval_targets(torch.Tensor): One-hot retrieval targets.
         code_length(int): Hash code length.
         num_samples(int): Number of samples.
         max_iter(int): Number of iterations.
@@ -58,21 +62,21 @@ def train(
         # Update U
         U = U - du @ torch.inverse(H)
 
-    # Generate retrieval dataset code
-    retrieval_code = U.sign()
-
-    # Out-of-sample extension
-    W = W_prime @ retrieval_code
-
-    # Generate query dataset code
-    query_code = (query_data @ W).sign()
-
     # Evaluate
+    # Out-of-sample extension
+    train_code = U.sign()
+    W = W_prime @ train_code
+
+    # Generate query and retrieval code
+    query_code = (query_data @ W).sign()
+    retrieval_code = (retrieval_data @ W).sign()
+
+    # Compute map
     mAP = mean_average_precision(
         query_code,
         retrieval_code,
         query_targets,
-        train_targets,
+        retrieval_targets,
         topk,
     )
 
