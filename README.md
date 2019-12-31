@@ -40,7 +40,7 @@ optional arguments:
 ```
 
 ## EXPERIMENTS
-cifar10-gist dataset. Gist features, 1000 query images, 5000 training images.
+cifar10-gist dataset. Gist features, 1000 query images, 5000 training images. beta = 30, lamda = 1.
 
 cifar-10-alexnet dataset. Alexnet features, 1000 query images, 5000 training images. beta=1, lamda = 50.
 
