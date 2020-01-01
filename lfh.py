@@ -1,6 +1,6 @@
 import torch
 
-from utils.evaluate import mean_average_precision
+from utils.evaluate import mean_average_precision, pr_curve
 
 
 def train(
@@ -15,6 +15,7 @@ def train(
         max_iter,
         beta,
         lamda,
+        device,
         topk,
 ):
     """
@@ -31,16 +32,18 @@ def train(
         num_samples(int): Number of samples.
         max_iter(int): Number of iterations.
         beta, lamda(float): Hyper-parameters.
+        device(torch.device): GPU or CPU.
         topk(int): Calculate top k data map.
 
     Returns
-        mAP(float): Mean Average Precision.
+        checkpoint(dict): Checkpoint.
     """
     # Initialization
+    train_data, train_targets, query_data, query_targets, retrieval_data, retrieval_targets = train_data.to(device), train_targets.to(device), query_data.to(device), query_targets.to(device), retrieval_data.to(device), retrieval_targets.to(device)
     N = train_data.shape[0]
-    U = torch.randn(N, code_length)
+    U = torch.randn(N, code_length).to(device)
     W_prime = torch.inverse(train_data.t() @ train_data +
-                            lamda * torch.eye(train_data.shape[1])) @ train_data.t()
+                            lamda * torch.eye(train_data.shape[1]).to(device)) @ train_data.t()
 
     # Compute similarity matrix
     S = (train_targets @ train_targets.t() > 0).float()
@@ -54,7 +57,7 @@ def train(
         theta_sigmoid = ((U @ U[sample_index, :].t()) / 2).sigmoid()
 
         # Compute Hessian matrix
-        H = -U[sample_index, :].t() @ U[sample_index, :] / 8 - torch.eye(code_length) / beta
+        H = -U[sample_index, :].t() @ U[sample_index, :] / 8 - torch.eye(code_length).to(device) / beta
 
         # Compute first derivative
         du = (S[:, sample_index] - theta_sigmoid) @ U[sample_index, :] - U / beta
@@ -77,7 +80,30 @@ def train(
         retrieval_code,
         query_targets,
         retrieval_targets,
+        device,
         topk,
     )
 
-    return mAP
+    # PR curve
+    P, R = pr_curve(
+        query_code,
+        retrieval_code,
+        query_targets,
+        retrieval_targets,
+        device,
+    )
+
+    # Save checkpoint
+    checkpoint = {
+        'qB': query_code,
+        'rB': retrieval_code,
+        'qL': query_targets,
+        'rL': retrieval_targets,
+        'W': W,
+        'P': P,
+        'R': R,
+        'map': mAP,
+    }
+
+    return checkpoint
+

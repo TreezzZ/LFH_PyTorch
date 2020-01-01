@@ -1,10 +1,11 @@
 import argparse
-
 import torch
-from loguru import logger
-
 import lfh
+import numpy as np
+import random
+
 from data.dataloader import load_data
+from loguru import logger
 
 
 def run():
@@ -13,12 +14,17 @@ def run():
     logger.add('logs/{}_beta_{}_lamda_{}.log'.format(args.dataset, args.beta, args.lamda), rotation='500 MB', level='INFO')
     logger.info(args)
 
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
     # Load dataset
     train_data, train_targets, query_data, query_targets, retrieval_data, retrieval_targets = load_data(args.dataset, args.root)
 
     # Training
     for code_length in args.code_length:
-        mAP = lfh.train(
+        checkpoint = lfh.train(
             train_data,
             train_targets,
             query_data,
@@ -30,9 +36,11 @@ def run():
             args.max_iter,
             args.beta,
             args.lamda,
+            args.device,
             args.topk,
         )
-        logger.info('[code length:{}][map:{:.4f}]'.format(code_length, mAP))
+        logger.info('[code length:{}][map:{:.4f}]'.format(code_length, checkpoint['map']))
+        torch.save(checkpoint, 'checkpoints/{}_code_{}_beta_{}_lamda_{}_map_{:.4f}.pt'.format(args.dataset, code_length, args.beta, args.lamda, checkpoint['map']))
 
 
 def load_config():
@@ -62,8 +70,18 @@ def load_config():
                         help='Hyper-parameter.(default: 1)')
     parser.add_argument('--topk', default=-1, type=int,
                         help='Calculate top k data map.(default: all)')
+    parser.add_argument('--gpu', default=None, type=int,
+                        help='Using gpu.(default: False)')
+    parser.add_argument('--seed', default=3367, type=int,
+                        help='Random seed.(default: 3367)')
 
     args = parser.parse_args()
+
+    # GPU
+    if args.gpu is None:
+        args.device = torch.device("cpu")
+    else:
+        args.device = torch.device("cuda:%d" % args.gpu)
 
     # Hash code length
     args.code_length = list(map(int, args.code_length.split(',')))
